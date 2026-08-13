@@ -31,92 +31,57 @@
       transparent: true
     }).addTo(map);
     
-// 4. GPSで現在地を「監視・更新」し続ける関数
-    function trackLocation() {
-        if (!navigator.geolocation) {
-            alert("お使いの端末はGPSに対応していません");
-            return;
+// 4. Geolocation APIで現在地を取得
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy; // 精度（メートル）
+
+                    const latLng = [lat, lng];
+
+                    // 既存のマーカー・円があれば削除
+                    if (locationMarker) {
+                        map.removeLayer(locationMarker);
+                    }
+                    if (accuracyCircle) {
+                        map.removeLayer(accuracyCircle);
+                    }
+
+                    // 精度を表す薄い青色の円（外側の丸）
+                    accuracyCircle = L.circle(latLng, {
+                        radius: accuracy,
+                        color: '#136fad',
+                        fillColor: '#136fad',
+                        fillOpacity: 0.15,
+                        weight: 1
+                    }).addTo(map);
+
+                    // 現在地を示す濃い青色の丸（中心の青丸）
+                    locationMarker = L.circleMarker(latLng, {
+                        radius: 8,
+                        color: '#ffffff',
+                        fillColor: '#2a81cb',
+                        fillOpacity: 1.0,
+                        weight: 2
+                    }).addTo(map).bindPopup("現在地はこちらです").openPopup();
+
+                    // 初回のみ地図の中心を現在地に移動
+                    map.setView(latLng, 16);
+                },
+                (error) => {
+                    alert("位置情報の取得に失敗しました: " + error.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                }
+            );
+        } else {
+            alert("お使いのブラウザは位置情報取得に対応していません。");
         }
-
-        // getCurrentPositionではなく、watchPositionに変えることで電波を掴むまで探し続けます
-        navigator.geolocation.watchPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                const accuracy = position.coords.accuracy;
-
-                // すでにマーカーがあれば一旦消す
-                if (currentMarker) {
-                    map.removeLayer(currentMarker);
-                    map.removeLayer(currentCircle);
-                }
-
-                // 外部画像を使わず、青いレーザーポイントを強制描画
-                currentMarker = L.circleMarker([lat, lng], {
-                    radius: 10,
-                    color: '#ffffff',
-                    weight: 3,
-                    fillColor: '#007AFF',
-                    fillOpacity: 1.0
-                }).addTo(map).bindPopup("あなたの現在地");
-
-                // 誤差の範囲を表示
-                currentCircle = L.circle([lat, lng], {
-                    radius: accuracy,
-                    color: '#007AFF',
-                    weight: 1,
-                    fillColor: '#007AFF',
-                    fillOpacity: 0.1
-                }).addTo(map);
-
-                // ★最重要：位置情報が取れた瞬間、あなたの今いる場所に画面を自動で強制移動させる
-                if (!hasCentered) {
-                    map.setView([lat, lng], 16);
-                    hasCentered = true; // 何度も勝手に画面が動かないように固定
-                }
-            },
-            (error) => {
-                console.log("GPS受信中... 電波を探しています。");
-            },
-            {
-                enableHighAccuracy: true, // 高精度GPSを使用
-                timeout: 15000,           // 15秒間探し続ける
-                maximumAge: 0
-            }
-        );
-    }
-
-    // 画面が開いた瞬間に自動でGPSを起動する
-    window.onload = trackLocation;
-　
-function setCurrentLocationMaker(map, position){
-        //縁の薄い青丸
-        new google.maps.Circle({
-            strokeColor: '#115EC3',
-            strokeOpacity: 0.2,
-            strokeWeight: 1,
-            fillColor: '#115EC3',
-            fillOpacity: 0.2,
-            map: map,
-            center: position,
-            radius: 100
-        });        
-        //  中央の濃い青丸
-        new google.maps.Marker({
-            position: position,
-            map: map,
-            icon: {
-              path: google.maps.SymbolPath.CIRCLE,
-              fillColor: '#115EC3',
-              fillOpacity: 1,
-              strokeColor: 'white',
-              strokeWeight: 2,
-              scale: 7
-            }, 
-        });
-    }
-
-
-</script>
+    </script>
 </body>
 </html>
