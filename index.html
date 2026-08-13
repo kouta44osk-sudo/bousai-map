@@ -4,84 +4,206 @@
   <meta charset="utf-8">
   <title>100日後に大災害が起こるんです</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>#map { height: 100vh; }</style>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #map {
+      width: 100%;
+      height: 100vh;
+    }
+  </style>
 </head>
+
 <body>
+
   <div id="map"></div>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
   <script>
-    // 1. 地図の初期化（大阪市平野区長吉周辺）
+
+    // =====================================
+    // 1. 地図の初期化
+    // =====================================
+
     const map = L.map('map', {
-        zoomControl: true
+      zoomControl: true
     }).setView([34.606822, 135.571434], 14);
 
-    // 地理院地図（標準）
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
-      attribution: '地理院地図',
-      maxZoom: 18,
-      minZoom: 5
-    }).addTo(map);
 
-    // 洪水浸水想定タイル（想定最大規模 L2）
-    L.tileLayer('https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin/{z}/{x}/{y}.png', {
-      attribution: '国土交通省 洪水浸水想定区域図',
-      opacity: 0.6,
-      transparent: true
-    }).addTo(map);
-    
-// 4. Geolocation APIで現在地を取得
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    const accuracy = position.coords.accuracy; // 精度（メートル）
+    // =====================================
+    // 2. 国土地理院 標準地図
+    // =====================================
 
-                    const latLng = [lat, lng];
+    L.tileLayer(
+      'https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png',
+      {
+        attribution: '地理院地図',
+        maxZoom: 18,
+        minZoom: 5
+      }
+    ).addTo(map);
 
-                    // 既存のマーカー・円があれば削除
-                    if (locationMarker) {
-                        map.removeLayer(locationMarker);
-                    }
-                    if (accuracyCircle) {
-                        map.removeLayer(accuracyCircle);
-                    }
 
-                    // 精度を表す薄い青色の円（外側の丸）
-                    accuracyCircle = L.circle(latLng, {
-                        radius: accuracy,
-                        color: '#136fad',
-                        fillColor: '#136fad',
-                        fillOpacity: 0.15,
-                        weight: 1
-                    }).addTo(map);
+    // =====================================
+    // 3. 洪水浸水想定区域
+    // =====================================
 
-                    // 現在地を示す濃い青色の丸（中心の青丸）
-                    locationMarker = L.circleMarker(latLng, {
-                        radius: 8,
-                        color: '#ffffff',
-                        fillColor: '#2a81cb',
-                        fillOpacity: 1.0,
-                        weight: 2
-                    }).addTo(map).bindPopup("現在地はこちらです").openPopup();
+    L.tileLayer(
+      'https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin/{z}/{x}/{y}.png',
+      {
+        attribution: '国土交通省 洪水浸水想定区域図',
+        opacity: 0.6
+      }
+    ).addTo(map);
 
-                    // 初回のみ地図の中心を現在地に移動
-                    map.setView(latLng, 16);
-                },
-                (error) => {
-                    alert("位置情報の取得に失敗しました: " + error.message);
-                },
-                {
-                    enableHighAccuracy: true,
-                    maximumAge: 0,
-                    timeout: 10000
-                }
-            );
-        } else {
-            alert("お使いのブラウザは位置情報取得に対応していません。");
+
+    // =====================================
+    // 4. 現在地用の変数
+    // =====================================
+
+    let locationMarker = null;
+    let accuracyCircle = null;
+
+    // 初回だけ地図を現在地へ移動するための変数
+    let firstLocation = true;
+
+
+    // =====================================
+    // 5. 現在地を取得
+    // =====================================
+
+    if (navigator.geolocation) {
+
+      navigator.geolocation.watchPosition(
+
+        // ---------------------------------
+        // 現在地取得成功
+        // ---------------------------------
+
+        (position) => {
+
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
+
+          const latLng = [lat, lng];
+
+
+          // -------------------------------
+          // 古い現在地マーカーを削除
+          // -------------------------------
+
+          if (locationMarker) {
+            map.removeLayer(locationMarker);
+          }
+
+          if (accuracyCircle) {
+            map.removeLayer(accuracyCircle);
+          }
+
+
+          // -------------------------------
+          // 精度を表す円
+          // -------------------------------
+
+          accuracyCircle = L.circle(latLng, {
+            radius: accuracy,
+            color: '#136fad',
+            fillColor: '#136fad',
+            fillOpacity: 0.15,
+            weight: 1
+          }).addTo(map);
+
+
+          // -------------------------------
+          // 現在地の青い丸
+          // -------------------------------
+
+          locationMarker = L.circleMarker(latLng, {
+
+            radius: 8,
+
+            color: '#ffffff',
+
+            fillColor: '#2a81cb',
+
+            fillOpacity: 1,
+
+            weight: 2
+
+          })
+          .addTo(map)
+          .bindPopup(
+            "現在地はこちらです<br>" +
+            "位置精度：約" +
+            Math.round(accuracy) +
+            "m"
+          );
+
+
+          // -------------------------------
+          // 初回だけ現在地に移動
+          // -------------------------------
+
+          if (firstLocation) {
+
+            map.setView(latLng, 16);
+
+            locationMarker.openPopup();
+
+            firstLocation = false;
+          }
+
+        },
+
+
+        // ---------------------------------
+        // 現在地取得失敗
+        // ---------------------------------
+
+        (error) => {
+
+          console.error(error);
+
+          alert(
+            "位置情報の取得に失敗しました。\n\n" +
+            "エラー：" +
+            error.message
+          );
+
+        },
+
+
+        // ---------------------------------
+        // 位置情報取得設定
+        // ---------------------------------
+
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
         }
-    </script>
+
+      );
+
+    } else {
+
+      alert(
+        "お使いのブラウザは位置情報取得に対応していません。"
+      );
+
+    }
+
+  </script>
+
 </body>
 </html>
