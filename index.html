@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>洪水浸水想定タイル重ね地図</title>
+  <title>100日後に大災害が起こるんです</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>#map { height: 100vh; }</style>
@@ -12,7 +12,10 @@
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([35.6812, 139.7671], 14); // 東京駅
+    // 1. 地図の初期化（大阪市平野区長吉周辺）
+    const map = L.map('map', {
+        zoomControl: true
+    }).setView([34.606822, 135.571434], 14);
 
     // 地理院地図（標準）
     L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png', {
@@ -27,6 +30,66 @@
       opacity: 0.6,
       transparent: true
     }).addTo(map);
-  </script>
+    
+　// 4. 【本題】GPSで現在地を取得する関数
+    function trackLocation() {
+        if (!navigator.geolocation) {
+            alert("お使いの端末はGPSに対応していません");
+            return;
+        }
+
+        // 高精度で位置情報を1回取得する
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const accuracy = position.coords.accuracy;
+
+                // すでにマーカーがあれば一旦消す
+                if (currentMarker) {
+                    map.removeLayer(currentMarker);
+                    map.removeLayer(currentCircle);
+                }
+
+                // 現在地に青いピン（マーカー）を表示
+                currentMarker = L.circleMarker([lat, lng], {
+                    radius: 9,
+                    color: '#ffffff',
+                    weight: 2,
+                    fillColor: '#007AFF',
+                    fillOpacity: 0.9
+                }).addTo(map).bindPopup("あなたの現在地").openPopup();
+
+                // 誤差の範囲をうっすら青い丸で表示
+                currentCircle = L.circle([lat, lng], {
+                    radius: accuracy,
+                    color: '#007AFF',
+                    weight: 1,
+                    fillColor: '#007AFF',
+                    fillOpacity: 0.15
+                }).addTo(map);
+
+                // 地図の視点を現在地にズームして移動
+                map.setView([lat, lng], 16);
+            },
+            (error) => {
+                // エラーコードごとの原因を画面にアラート表示
+                let errorMsg = "位置情報の取得に失敗しました。";
+                if (error.code === 1) errorMsg = "位置情報の利用が許可されていません。ブラウザやスマホの設定を確認してください。";
+                if (error.code === 2) errorMsg = "電波状況などが悪く、位置特定ができません。";
+                if (error.code === 3) errorMsg = "位置情報の取得がタイムアウトしました。";
+                alert(errorMsg);
+            },
+            {
+                enableHighAccuracy: true, // 高精度GPSを強制
+                timeout: 10000,
+                maximumAge: 0
+            }
+        );
+    }
+
+    // 画面が開いた瞬間に自動でGPSを起動する
+    window.onload = trackLocation;
+</script>
 </body>
 </html>
