@@ -31,14 +31,13 @@
       transparent: true
     }).addTo(map);
     
-　// 4. 【本題】GPSで現在地を取得する関数
+　// 4. GPSで現在地を取得する関数
     function trackLocation() {
         if (!navigator.geolocation) {
             alert("お使いの端末はGPSに対応していません");
             return;
         }
 
-        // 高精度で位置情報を1回取得する
         navigator.geolocation.getCurrentPosition(
             (position) => {
                 const lat = position.coords.latitude;
@@ -51,14 +50,15 @@
                     map.removeLayer(currentCircle);
                 }
 
-                // 現在地に青いピン（マーカー）を表示
+                // ★外部画像を使わず、SVG（プログラム）で直接「青い光のレーザーポイント」を描画
                 currentMarker = L.circleMarker([lat, lng], {
-                    radius: 9,
-                    color: '#ffffff',
-                    weight: 2,
-                    fillColor: '#007AFF',
-                    fillOpacity: 0.9
-                }).addTo(map).bindPopup("あなたの現在地").openPopup();
+                    radius: 10,           // ドットの大きさ
+                    color: '#ffffff',     // 外枠の白フチ
+                    weight: 3,            // 白フチの太さ
+                    fillColor: '#007AFF', // レーザーの青色
+                    fillOpacity: 1.0,     // 透明度なしでクッキリ表示
+                    className: 'gps-pulse-marker' // アニメーション用クラス名
+                }).addTo(map);
 
                 // 誤差の範囲をうっすら青い丸で表示
                 currentCircle = L.circle([lat, lng], {
@@ -66,22 +66,19 @@
                     color: '#007AFF',
                     weight: 1,
                     fillColor: '#007AFF',
-                    fillOpacity: 0.15
+                    fillOpacity: 0.1
                 }).addTo(map);
 
-                // 地図の視点を現在地にズームして移動
+                // 地図の視点を現在地にズームして確実に移動
                 map.setView([lat, lng], 16);
             },
             (error) => {
-                // エラーコードごとの原因を画面にアラート表示
                 let errorMsg = "位置情報の取得に失敗しました。";
-                if (error.code === 1) errorMsg = "位置情報の利用が許可されていません。ブラウザやスマホの設定を確認してください。";
-                if (error.code === 2) errorMsg = "電波状況などが悪く、位置特定ができません。";
-                if (error.code === 3) errorMsg = "位置情報の取得がタイムアウトしました。";
+                if (error.code === 1) errorMsg = "位置情報の利用が許可されていません。スマホやブラウザの設定アプリから位置情報をオンにしてください。";
                 alert(errorMsg);
             },
             {
-                enableHighAccuracy: true, // 高精度GPSを強制
+                enableHighAccuracy: true,
                 timeout: 10000,
                 maximumAge: 0
             }
