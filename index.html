@@ -31,63 +31,92 @@
       transparent: true
     }).addTo(map);
     
- // 4. GPSで現在地を「監視・更新」し続ける関数
-    function trackLocation() {
-        if (!navigator.geolocation) {
-            alert("お使いの端末はGPSに対応していません");
-            return;
+import SwiftUI
+import MapKit
+import CoreLocation
+import Combine
+
+// ContentViewはSwiftUIのViewを表すStructです。
+struct ContentView: View {
+    // LocationManagerクラスのインスタンスを@StateObjectプロパティとして持っています。
+    @StateObject private var locationManager = LocationManager()
+
+    var body: some View {
+        // Mapビューを表示します。
+        // coordinateRegionプロパティにlocationManager.regionをバインディングしています。
+        // showsUserLocationをtrueにすると、ユーザーの現在位置が青い円で表示されます。
+        // annotationItemsにlocationManager.annotationsを指定し、MapMarkerを使ってアノテーションを表示します。
+        Map(coordinateRegion: $locationManager.region, showsUserLocation: true, annotationItems: locationManager.annotations) { annotation in
+            MapMarker(coordinate: annotation.coordinate)
         }
+        .edgesIgnoringSafeArea(.all) // Mapビューをエッジまで広げて表示します。
+        .onAppear {
+            // ContentViewが表示されたときに、locationManager.requestLocation()を呼び出します。
+            locationManager.requestLocation()
+        }
+    }
+}
 
-        // getCurrentPositionではなく、watchPositionに変えることで電波を掴むまで探し続けます
-        navigator.geolocation.watchPosition(
-            (position) => {
-                const lat = position.coords.latitude;
-                const lng = position.coords.longitude;
-                const accuracy = position.coords.accuracy;
+// LocationManagerクラスはCLLocationManagerDelegateに準拠し、位置情報の取得と管理を行います。
+class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    // CLLocationManagerのインスタンスを持っています。
+    private let manager = CLLocationManager()
 
-                // すでにマーカーがあれば一旦消す
-                if (currentMarker) {
-                    map.removeLayer(currentMarker);
-                    map.removeLayer(currentCircle);
-                }
+    // 位置情報のアノテーションを保持する配列です。
+    @Published private(set) var annotations: [LocationAnnotation] = []
 
-                // 外部画像を使わず、青いレーザーポイントを強制描画
-                currentMarker = L.circleMarker([lat, lng], {
-                    radius: 10,
-                    color: '#ffffff',
-                    weight: 3,
-                    fillColor: '#007AFF',
-                    fillOpacity: 1.0
-                }).addTo(map).bindPopup("あなたの現在地");
+    // 地図の表示領域を表すMKCoordinateRegionのPublishedプロパティです。
+    @Published var region = MKCoordinateRegion(center: CLLocationCoordinate2D(latitude: 35.6895, longitude: 139.6917), span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1))
 
-                // 誤差の範囲を表示
-                currentCircle = L.circle([lat, lng], {
-                    radius: accuracy,
-                    color: '#007AFF',
-                    weight: 1,
-                    fillColor: '#007AFF',
-                    fillOpacity: 0.1
-                }).addTo(map);
-
-                // ★最重要：位置情報が取れた瞬間、あなたの今いる場所に画面を自動で強制移動させる
-                if (!hasCentered) {
-                    map.setView([lat, lng], 16);
-                    hasCentered = true; // 何度も勝手に画面が動かないように固定
-                }
-            },
-            (error) => {
-                console.log("GPS受信中... 電波を探しています。");
-            },
-            {
-                enableHighAccuracy: true, // 高精度GPSを使用
-                timeout: 15000,           // 15秒間探し続ける
-                maximumAge: 0
-            }
-        );
+    override init() {
+        super.init()
+        // CLLocationManagerのdelegateをselfに設定します。
+        manager.delegate = self
+        // 高精度の位置情報を要求します。
+        manager.desiredAccuracy = kCLLocationAccuracyBest
     }
 
-    // 画面が開いた瞬間に自動でGPSを起動する
-    window.onload = trackLocation;
+    // 位置情報の取得を開始します。
+    func requestLocation() {
+        // ユーザーに位置情報の使用許可を求めます。
+        manager.requestWhenInUseAuthorization()
+    }
+
+    // 位置情報が更新されたときに呼ばれるdelegateメソッドです。
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        // 最新の位置情報を取得します。
+        guard let location = locations.last else { return }
+
+        // 位置情報からLocationAnnotationのインスタンスを作成します。
+        let annotation = LocationAnnotation(coordinate: location.coordinate)
+        // annotationsプロパティに新しいアノテーションを設定します。
+        annotations = [annotation]
+
+        // 新しい位置情報から地図の中心座標を計算します。
+        let center = CLLocationCoordinate2D(latitude: location.coordinate.latitude, longitude: location.coordinate.longitude)
+        let span = MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01) // 適切なスパン(ズームレベル)を設定します。
+        region = MKCoordinateRegion(center: center, span: span) // 新しいregionを設定します。
+
+        // メインスレッドでobjectWillChange.send()を呼び出します。
+        // これにより、PublishedプロパティのObserverに変更が通知されます。
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
+    }
+}
+
+// LocationAnnotationはIdnetifiableプロトコルに準拠する構造体で、地図上のアノテーションを表します。
+struct LocationAnnotation: Identifiable {
+    let id = UUID() // アノテーションのユニークなIDです。
+    let coordinate: CLLocationCoordinate2D // アノテーションの座標です。
+}
+
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+    }
+}
+                   
 </script>
 </body>
 </html>
