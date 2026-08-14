@@ -5,10 +5,11 @@
   <title>100日後に大災害が起こるんです</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
 
   <style>
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       width: 100%;
@@ -19,32 +20,35 @@
       width: 100%;
       height: 100vh;
     }
-  </style>
-</head>
 
-<body>
-
-  <div id="map"></div>
-
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-  <script>
-
-     /* 【追加】画面最前面に表示する「現在地にジャンプ」ボタンのデザイン */
+    /* 現在地にジャンプするボタン */
     .gps-button {
       position: absolute;
       bottom: 30px;
       right: 20px;
       z-index: 9999;
+
       background: #ffffff;
       color: #333333;
+
       padding: 12px 18px;
       border-radius: 25px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+
       cursor: pointer;
       font-weight: bold;
       font-size: 14px;
+
       border: none;
+    }
+
+    .gps-button:hover {
+      background: #f0f0f0;
+    }
+
+    .gps-button:active {
+      transform: scale(0.96);
     }
   </style>
 </head>
@@ -53,8 +57,12 @@
 
   <div id="map"></div>
 
-  <!-- 【追加】現在地にジャンプするボタン（クリックすると初回判定をリセットして再ジャンプ） -->
-  <button class="gps-button" onclick="firstLocation=true;">現在地にジャンプ</button>
+  <!-- 現在地にジャンプするボタン -->
+  <button
+    class="gps-button"
+    onclick="jumpToCurrentLocation()">
+    現在地にジャンプ
+  </button>
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
@@ -103,8 +111,9 @@
     let locationMarker = null;
     let accuracyCircle = null;
 
-    // 初回だけ地図を現在地へ移動するための変数
-    let firstLocation = true;
+    // 最新の現在地を保存
+    let currentLatLng = null;
+    let currentAccuracy = null;
 
 
     // =====================================
@@ -127,71 +136,65 @@
 
           const latLng = [lat, lng];
 
+          // 最新の現在地を保存
+          currentLatLng = latLng;
+          currentAccuracy = accuracy;
+
 
           // -------------------------------
-          // 古い現在地マーカーを削除
+          // 初回はマーカーを作成
           // -------------------------------
 
-          if (locationMarker) {
-            map.removeLayer(locationMarker);
+          if (!locationMarker) {
+
+            locationMarker = L.circleMarker(latLng, {
+              radius: 8,
+              color: '#ffffff',
+              fillColor: '#2a81cb',
+              fillOpacity: 1,
+              weight: 2
+            }).addTo(map);
+
+          } else {
+
+            // 2回目以降は位置だけ更新
+            locationMarker.setLatLng(latLng);
+
           }
 
-          if (accuracyCircle) {
-            map.removeLayer(accuracyCircle);
+
+          // -------------------------------
+          // 精度円
+          // -------------------------------
+
+          if (!accuracyCircle) {
+
+            accuracyCircle = L.circle(latLng, {
+              radius: accuracy,
+              color: '#136fad',
+              fillColor: '#136fad',
+              fillOpacity: 0.15,
+              weight: 1
+            }).addTo(map);
+
+          } else {
+
+            accuracyCircle.setLatLng(latLng);
+            accuracyCircle.setRadius(accuracy);
+
           }
 
 
           // -------------------------------
-          // 精度を表す円
+          // ポップアップを更新
           // -------------------------------
 
-          accuracyCircle = L.circle(latLng, {
-            radius: accuracy,
-            color: '#136fad',
-            fillColor: '#136fad',
-            fillOpacity: 0.15,
-            weight: 1
-          }).addTo(map);
-
-
-          // -------------------------------
-          // 現在地の青い丸
-          // -------------------------------
-
-          locationMarker = L.circleMarker(latLng, {
-
-            radius: 8,
-
-            color: '#ffffff',
-
-            fillColor: '#2a81cb',
-
-            fillOpacity: 1,
-
-            weight: 2
-
-          })
-          .addTo(map)
-          .bindPopup(
+          locationMarker.bindPopup(
             "現在地はこちらです<br>" +
             "位置精度：約" +
             Math.round(accuracy) +
             "m"
           );
-
-
-          // -------------------------------
-          // 初回だけ現在地に移動
-          // -------------------------------
-
-          if (firstLocation) {
-
-            map.setView(latLng, 16);
-
-            locationMarker.openPopup();
-
-            firstLocation = false;
-          }
 
         },
 
@@ -230,6 +233,35 @@
       alert(
         "お使いのブラウザは位置情報取得に対応していません。"
       );
+
+    }
+
+
+    // =====================================
+    // 6. 現在地にジャンプ
+    // =====================================
+
+    function jumpToCurrentLocation() {
+
+      if (!currentLatLng) {
+
+        alert(
+          "まだ現在地を取得できていません。\n" +
+          "位置情報の取得を許可して、少し待ってください。"
+        );
+
+        return;
+      }
+
+      // 現在地へ移動
+      map.setView(currentLatLng, 16, {
+        animate: true
+      });
+
+      // ポップアップを表示
+      if (locationMarker) {
+        locationMarker.openPopup();
+      }
 
     }
 
